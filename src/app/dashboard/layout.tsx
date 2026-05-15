@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   Flag,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Menu,
   MessageSquare,
@@ -36,24 +37,25 @@ type SidebarContentProps = {
   pathname: string;
 };
 
+
 function SidebarContent({ onNavigate, pathname }: SidebarContentProps) {
   const { logout } = useAuth();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    if (isLoggingOut) {
-      return;
-    }
-
+    if (isLoggingOut) return;
     setIsLoggingOut(true);
-    const success = await logout();
-    setIsLoggingOut(false);
-
-    if (success) {
-      onNavigate();
-      router.replace("/login");
+    try {
+      await logout();
+    } catch (e) {
+      console.error("Logout error:", e);
+    } finally {
+      setIsLoggingOut(false);
     }
+    // Always redirect — even if signOut throws, clear the session
+    onNavigate();
+    router.replace("/login");
   };
 
   return (
@@ -85,12 +87,19 @@ function SidebarContent({ onNavigate, pathname }: SidebarContentProps) {
       <div className="border-t border-white/10 p-4">
         <button
           onClick={() => void handleLogout()}
-          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-white"
+          className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all ${
+            isLoggingOut 
+              ? "text-red-400 bg-red-500/10 cursor-not-allowed" 
+              : "text-zinc-400 hover:bg-red-500/10 hover:text-red-400"
+          }`}
           type="button"
           disabled={isLoggingOut}
         >
-          <LogOut className="h-5 w-5" />
-          {isLoggingOut ? "Logging out..." : "Logout"}
+          {isLoggingOut 
+            ? <Loader2 className="h-5 w-5 animate-spin" />
+            : <LogOut className="h-5 w-5" />
+          }
+          {isLoggingOut ? "Signing out..." : "Logout"}
         </button>
       </div>
     </>
@@ -103,7 +112,31 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace("/login");
+    }
+  }, [loading, router, user]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-white">
+        <div className="text-center">
+          <Shield className="mx-auto h-12 w-12 animate-pulse text-zinc-700" />
+          <h2 className="mt-4 text-xl font-semibold text-white">Securing session...</h2>
+          <p className="mt-2 text-zinc-500">Checking your dashboard access.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen bg-black text-white">
