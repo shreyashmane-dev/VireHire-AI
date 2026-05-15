@@ -24,36 +24,16 @@ const fallbackNews = [
     target: "Finance",
     confidence: 93,
   },
-  {
-    title: "Task Job Scams Targeting Entry-Level Applicants",
-    risk: "Medium",
-    summary: "Short-form data-entry and rating-task roles are promising fast payouts for minimal work. These campaigns often escalate into payment requests once trust is built.",
-    target: "Entry Level",
-    confidence: 91,
-  },
-  {
-    title: "Document Harvesting During Fake Verification",
-    risk: "High",
-    summary: "Candidates are being asked for ID cards, banking details, and selfies before any real interview takes place. Delay document sharing until the employer is independently verified.",
-    target: "Global Hiring",
-    confidence: 95,
-  },
 ];
 
 export async function GET() {
-  // Dedicated key for Threat Feed keeps its quota separate from the AI Analyzer
-  const apiKey = process.env.GROQ_NEWS_API_KEY || process.env.GROQ_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json({ success: true, data: fallbackNews, source: "fallback" });
-  }
-
-  const groq = new Groq({ apiKey });
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const newsApiKey = process.env.NEWS_API_KEY;
+  const groqApiKey = process.env.GROQ_NEWS_API_KEY || process.env.GROQ_API_KEY;
+  const today = new Date().toISOString().split("T")[0];
   const dailyNewsRef = adminDb?.collection("daily_intelligence").doc(today) ?? null;
 
   try {
-    // 1. Try to fetch today's news from Firestore first
+    // 1. Try Cache First
     if (dailyNewsRef) {
       const cachedDoc = await dailyNewsRef.get();
       if (cachedDoc.exists) {
@@ -61,16 +41,38 @@ export async function GET() {
       }
     }
 
-    // 2. If not found, generate new news with Groq
+    if (!newsApiKey || !groqApiKey) {
+      return NextResponse.json({ success: true, data: fallbackNews, source: "fallback" });
+    }
+
+    // 2. Fetch Real News from NewsAPI
+    const newsResponse = await fetch(
+      `https://newsapi.org/v2/everything?q="job scam" OR "recruitment fraud" OR "employment scam"&language=en&sortBy=publishedAt&pageSize=10&apiKey=${newsApiKey}`
+    );
+    const newsData = await newsResponse.json();
+
+    if (!newsData.articles || newsData.articles.length === 0) {
+      throw new Error("No real-world news found today");
+    }
+
+    // 3. Use Groq to transform real news into Threat Intel format
+    const groq = new Groq({ apiKey: groqApiKey });
+    const newsContext = newsData.articles.map((a: any) => `- ${a.title}: ${a.description}`).join("\n");
+
     const prompt = `
-      You are an elite cybersecurity intelligence officer specializing in recruitment fraud.
-      Generate a list of 5 "Latest Threat Intel" items for ${today}.
-      Each item should include:
-      - Title (catchy but professional)
-      - Risk Level (Critical, High, Medium)
-      - Summary (2 sentences about a trending scam type)
-      - Target Sector (e.g., Tech, Finance, Remote Work)
-      - Confidence Score (90-99%)
+      You are an elite cybersecurity intelligence officer. I will provide you with real news headlines about job scams.
+      Transform these into exactly 5 "Threat Intel" objects for our dashboard.
+      Use the real news content as the source.
+      
+      Each object must have:
+      - title (concise, professional)
+      - risk (Critical, High, Medium)
+      - summary (2 sentences max)
+      - target (Sector/Industry targeted)
+      - confidence (90-99)
+
+      Real News Context:
+      ${newsContext}
 
       Return ONLY a JSON array of objects.
     `;
@@ -78,7 +80,7 @@ export async function GET() {
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
+      temperature: 0.5,
       response_format: { type: "json_object" },
     });
 
@@ -87,51 +89,27 @@ export async function GET() {
 
     try {
       const content = JSON.parse(rawContent);
-      news = Array.isArray(content) ? content : (content.news || content.items || []);
-    } catch (parseError) {
-      console.error("Groq JSON Parse Error:", parseError, "Raw content:", rawContent);
-      // Fallback to empty news if AI fails to format correctly
-      news = [];
+      news = Array.isArray(content) ? content : (content.items || content.news || Object.values(content)[0]);
+      if (!Array.isArray(news)) news = [];
+    } catch (e) {
+      console.error("News Transformation Error:", e);
+      news = fallbackNews;
     }
 
-    // 3. Save to Firestore for other users today
+    // 4. Cache the real-world intelligence
     if (news.length > 0 && dailyNewsRef) {
-      try {
-        await dailyNewsRef.set({
-          items: news,
-          generatedAt: new Date().toISOString(),
-          date: today
-        });
-      } catch (dbError) {
-        console.error("Firestore Cache Save Error:", dbError);
-      }
+      await dailyNewsRef.set({
+        items: news.slice(0, 5),
+        generatedAt: new Date().toISOString(),
+        source: "NewsAPI + Groq Intelligence",
+        date: today
+      });
     }
 
-    return NextResponse.json({ success: true, data: news, source: "groq" });
-  } catch (error: unknown) {
-    console.error("News API Error:", error);
+    return NextResponse.json({ success: true, data: news.slice(0, 5), source: "real-time intelligence" });
 
-    const status = typeof error === "object" && error !== null && "status" in error ? (error as { status?: number }).status : undefined;
-    const message =
-      typeof error === "object" && error !== null && "message" in error
-        ? String((error as { message?: unknown }).message ?? "Unknown error")
-        : "Unknown error";
-
-    if (status === 401) {
-      return NextResponse.json({ error: "Invalid Groq API Key or Credits Exhausted" }, { status: 401 });
-    }
-    if (status === 429) {
-      return NextResponse.json({ error: "Groq API Rate Limit Reached" }, { status: 429 });
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: fallbackNews,
-        source: "fallback",
-        warning: `Threat feed fell back to seeded intel: ${message}`,
-      },
-      { status: 200 }
-    );
+  } catch (error: any) {
+    console.error("Global News API Error:", error);
+    return NextResponse.json({ success: true, data: fallbackNews, source: "fallback" });
   }
 }

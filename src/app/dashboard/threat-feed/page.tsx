@@ -85,12 +85,12 @@ export default function ThreatFeedPage() {
         
         <div className="max-w-2xl relative z-10">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-indigo-300">
-            <Zap className="h-3 w-3 fill-indigo-400" />
-            AI-Driven Intelligence Stream
+            <Globe className="h-3 w-3 text-indigo-400" />
+            Verified Global Intelligence
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-5xl tracking-tight">Global Threat Feed</h1>
           <p className="mt-4 text-zinc-400 text-lg leading-relaxed">
-            Real-time analysis of emerging recruitment scam clusters, identified by our neural network and the Groq intelligence engine.
+            Real-time monitoring of global recruitment fraud, powered by NewsAPI and categorized by our neural network for your protection.
           </p>
           
           <button 
