@@ -29,7 +29,7 @@ export async function GET() {
     }
 
     // 2. Try Multiple NewsAPI Endpoints for redundancy
-    let articles = [];
+    let articles: any[] = [];
     
     // Attempt 1: Specific Scam Query
     try {
@@ -58,7 +58,7 @@ export async function GET() {
     }
 
     // Filter and Deduplicate
-    const uniqueRaw = Array.from(new Map(articles.map(a => [a.url, a])).values())
+    const uniqueRaw = Array.from(new Map(articles.map((a: any) => [a.url, a])).values())
       .filter((a: any) => a.title && a.url && a.title !== "[Removed]")
       .slice(0, 10);
 
