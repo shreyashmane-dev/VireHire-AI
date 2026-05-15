@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
@@ -31,9 +31,8 @@ const defaultPreferences: Preferences = {
 };
 
 export default function SettingsPage() {
-  const { user } = useAuth();
-  const [displayName, setDisplayName] = useState("");
-  const [photoURL, setPhotoURL] = useState("");
+  const { user, loading, refreshUser } = useAuth();
+  const formRef = useRef<HTMLFormElement>(null);
   const [preferences, setPreferences] = useState<Preferences>(() => {
     if (typeof window === "undefined") {
       return defaultPreferences;
@@ -86,17 +85,24 @@ export default function SettingsPage() {
     setPreferences((current) => ({ ...current, [key]: !current[key] }));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (formData: FormData) => {
     setIsSaving(true);
     setStatus(null);
 
     try {
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, {
-          displayName: displayName.trim() || auth.currentUser.displayName,
-          photoURL: photoURL.trim() || null,
-        });
+      const submittedName = String(formData.get("displayName") ?? "").trim();
+      const submittedPhotoUrl = String(formData.get("photoURL") ?? "").trim();
+
+      if (!auth.currentUser) {
+        throw new Error("Please log in to update account settings.");
       }
+
+      await updateProfile(auth.currentUser, {
+        displayName: submittedName || auth.currentUser.displayName,
+        photoURL: submittedPhotoUrl || null,
+      });
+
+      await refreshUser();
 
       window.localStorage.setItem("verihire-settings", JSON.stringify(preferences));
       setStatus("Settings saved successfully.");
@@ -118,7 +124,14 @@ export default function SettingsPage() {
         <p className="mt-2 text-zinc-400">Configure your security parameters and dashboard preferences.</p>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-zinc-950/50 p-6 space-y-5">
+      <form
+        ref={formRef}
+        key={user?.uid ?? "guest-settings"}
+        action={(formData) => {
+          void handleSave(formData);
+        }}
+        className="rounded-2xl border border-white/10 bg-zinc-950/50 p-6 space-y-5"
+      >
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center">
             <User className="h-6 w-6 text-indigo-400" />
@@ -133,23 +146,25 @@ export default function SettingsPage() {
           <label className="space-y-2">
             <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Display Name</span>
             <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={user?.displayName || "Anonymous Agent"}
+              name="displayName"
+              defaultValue={user?.displayName ?? ""}
+              placeholder="Anonymous Agent"
               className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500/50"
+              disabled={loading || !user}
             />
           </label>
           <label className="space-y-2">
             <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Profile Photo URL</span>
             <input
-              value={photoURL}
-              onChange={(e) => setPhotoURL(e.target.value)}
-              placeholder={user?.photoURL || "https://example.com/avatar.jpg"}
+              name="photoURL"
+              defaultValue={user?.photoURL ?? ""}
+              placeholder="https://example.com/avatar.jpg"
               className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500/50"
+              disabled={loading || !user}
             />
           </label>
         </div>
-      </section>
+      </form>
 
       <div className="grid gap-4">
         {sections.map((section, i) => (
@@ -199,8 +214,10 @@ export default function SettingsPage() {
         </div>
         <button
           type="button"
-          onClick={handleSave}
-          disabled={isSaving}
+          onClick={() => {
+            formRef.current?.requestSubmit();
+          }}
+          disabled={isSaving || loading || !user}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           {isSaving ? <Save className="h-4 w-4 animate-pulse" /> : <CheckCircle2 className="h-4 w-4" />}
