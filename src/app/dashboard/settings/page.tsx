@@ -230,8 +230,34 @@ export default function SettingsPage() {
           <h3 className="font-semibold text-red-400">Danger Zone</h3>
           <p className="text-sm text-zinc-500 mt-1">Permanently delete your account and all reported intelligence data.</p>
         </div>
-        <button className="px-6 py-2.5 rounded-xl bg-red-600/10 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-600 hover:text-white transition-all">
-          Delete Account
+        <button 
+          onClick={async () => {
+            if (!user) return;
+            const confirm = window.confirm("Are you sure? This will PERMANENTLY delete your account and all your reports. This action cannot be undone.");
+            if (!confirm) return;
+            
+            try {
+              setIsSaving(true);
+              const res = await fetch("/api/user/delete", {
+                method: "POST",
+                body: JSON.stringify({ userId: user.uid }),
+              });
+              if (res.ok) {
+                window.location.href = "/";
+              } else {
+                alert("Failed to delete account. Please try again.");
+              }
+            } catch (err) {
+              console.error(err);
+              alert("An error occurred during account deletion.");
+            } finally {
+              setIsSaving(false);
+            }
+          }}
+          disabled={isSaving || !user}
+          className="px-6 py-2.5 rounded-xl bg-red-600/10 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
+        >
+          {isSaving ? "Purging..." : "Delete Account"}
         </button>
       </div>
     </div>
