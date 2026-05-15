@@ -6,23 +6,20 @@ const fallbackNews = [
   {
     title: "Telegram Recruiter Impersonation Wave",
     risk: "High",
-    summary: "Scammers are moving candidates off-platform quickly and sending fake interview confirmations through messaging apps. Verify recruiters through the company careers page before sharing documents.",
+    summary: "Scammers are moving candidates off-platform quickly and sending fake interview confirmations through messaging apps.",
     target: "Remote Work",
     confidence: 94,
+    url: "https://virehire.ai/threats",
+    image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=800",
   },
   {
     title: "Fake Offer Letters With Deposit Requests",
     risk: "Critical",
-    summary: "Fraud campaigns are using branded offer letters and asking for onboarding, device, or security-deposit payments. Legitimate employers should not charge candidates to start work.",
+    summary: "Fraud campaigns are using branded offer letters and asking for onboarding or security-deposit payments.",
     target: "Tech",
     confidence: 97,
-  },
-  {
-    title: "Lookalike Domains Used for Hiring Portals",
-    risk: "High",
-    summary: "Newly registered domains are imitating real employers and collecting resumes plus identity documents. Always compare the sender domain with the company’s official website.",
-    target: "Finance",
-    confidence: 93,
+    url: "https://virehire.ai/threats",
+    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=800",
   },
 ];
 
@@ -33,11 +30,18 @@ export async function GET() {
   const dailyNewsRef = adminDb?.collection("daily_intelligence").doc(today) ?? null;
 
   try {
-    // 1. Try Cache First
+    // 1. Try Cache First (Cache for 6 hours to keep it fresh)
     if (dailyNewsRef) {
       const cachedDoc = await dailyNewsRef.get();
       if (cachedDoc.exists) {
-        return NextResponse.json({ success: true, data: cachedDoc.data()?.items, source: "cache" });
+        const data = cachedDoc.data();
+        const lastUpdated = new Date(data?.generatedAt || 0).getTime();
+        const now = new Date().getTime();
+        
+        // If less than 6 hours old, return cache
+        if (now - lastUpdated < 6 * 60 * 60 * 1000) {
+          return NextResponse.json({ success: true, data: data?.items, source: "cache" });
+        }
       }
     }
 
@@ -47,7 +51,7 @@ export async function GET() {
 
     // 2. Fetch Real News from NewsAPI
     const newsResponse = await fetch(
-      `https://newsapi.org/v2/everything?q="job scam" OR "recruitment fraud" OR "employment scam"&language=en&sortBy=publishedAt&pageSize=10&apiKey=${newsApiKey}`
+      `https://newsapi.org/v2/everything?q="job scam" OR "recruiter scam" OR "employment fraud"&language=en&sortBy=publishedAt&pageSize=12&apiKey=${newsApiKey}`
     );
     const newsData = await newsResponse.json();
 
@@ -57,21 +61,29 @@ export async function GET() {
 
     // 3. Use Groq to transform real news into Threat Intel format
     const groq = new Groq({ apiKey: groqApiKey });
-    const newsContext = newsData.articles.map((a: any) => `- ${a.title}: ${a.description}`).join("\n");
+    
+    // Provide titles, descriptions, URLs and images to Groq
+    const newsContext = newsData.articles.map((a: any, i: number) => 
+      `ARTICLE ${i}:
+      Title: ${a.title}
+      Desc: ${a.description}
+      URL: ${a.url}
+      Image: ${a.urlToImage}`
+    ).join("\n\n");
 
     const prompt = `
-      You are an elite cybersecurity intelligence officer. I will provide you with real news headlines about job scams.
-      Transform these into exactly 5 "Threat Intel" objects for our dashboard.
-      Use the real news content as the source.
+      You are an elite cybersecurity intelligence officer. Transform these real-world news articles into 6 "Threat Intel" objects.
       
-      Each object must have:
+      For each object, you MUST include:
       - title (concise, professional)
       - risk (Critical, High, Medium)
       - summary (2 sentences max)
-      - target (Sector/Industry targeted)
+      - target (Sector targeted)
       - confidence (90-99)
+      - url (MUST use the exact URL from the corresponding article)
+      - image (MUST use the exact Image URL from the corresponding article)
 
-      Real News Context:
+      News Source Articles:
       ${newsContext}
 
       Return ONLY a JSON array of objects.
@@ -80,7 +92,7 @@ export async function GET() {
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.5,
+      temperature: 0.3,
       response_format: { type: "json_object" },
     });
 
@@ -96,17 +108,17 @@ export async function GET() {
       news = fallbackNews;
     }
 
-    // 4. Cache the real-world intelligence
+    // 4. Cache the results
     if (news.length > 0 && dailyNewsRef) {
       await dailyNewsRef.set({
-        items: news.slice(0, 5),
+        items: news.slice(0, 6),
         generatedAt: new Date().toISOString(),
-        source: "NewsAPI + Groq Intelligence",
+        source: "NewsAPI + Groq Real-Time",
         date: today
       });
     }
 
-    return NextResponse.json({ success: true, data: news.slice(0, 5), source: "real-time intelligence" });
+    return NextResponse.json({ success: true, data: news.slice(0, 6), source: "real-time intelligence" });
 
   } catch (error: any) {
     console.error("Global News API Error:", error);

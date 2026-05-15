@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Zap, Globe, RefreshCcw, ArrowUpRight } from "lucide-react";
+import { Zap, Globe, RefreshCcw, ArrowUpRight, ExternalLink, ShieldAlert, Timer } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ThreatIntel {
@@ -10,6 +10,8 @@ interface ThreatIntel {
   summary: string;
   target: string;
   confidence: number;
+  url: string;
+  image?: string;
 }
 
 export default function ThreatFeedPage() {
@@ -17,135 +19,169 @@ export default function ThreatFeedPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextRefresh, setNextRefresh] = useState(300); // 5 minutes in seconds
 
-  const fetchIntel = useCallback(async () => {
-    setIsRefreshing(true);
+  const fetchIntel = useCallback(async (isAuto = false) => {
+    if (!isAuto) setIsRefreshing(true);
     setError(null);
     try {
       const response = await fetch("/api/news");
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Server error: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error("Intelligence stream interrupted.");
       const result = await response.json();
       if (result.success) {
         setIntel(result.data);
+        setNextRefresh(300); // Reset timer
       }
-    } catch (error: unknown) {
-      console.error("Error fetching threat intel:", error);
-      setError(error instanceof Error ? error.message : "Unable to load threat intelligence.");
+    } catch (err: any) {
+      console.error("Fetch Error:", err);
+      setError("Unable to sync with global intelligence network.");
     } finally {
       setIsRefreshing(false);
+      setLoading(false);
     }
   }, []);
+
+  // Auto-refresh logic
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNextRefresh((prev) => {
+        if (prev <= 1) {
+          void fetchIntel(true);
+          return 300;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [fetchIntel]);
 
   useEffect(() => {
-    let isActive = true;
+    void fetchIntel();
+  }, [fetchIntel]);
 
-    async function loadInitialIntel() {
-      try {
-        const response = await fetch("/api/news");
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Server error: ${response.status}`);
-        }
-
-        const result = await response.json();
-        if (isActive && result.success) {
-          setIntel(result.data);
-        }
-      } catch (error: unknown) {
-        console.error("Error fetching threat intel:", error);
-        if (isActive) {
-          setError(error instanceof Error ? error.message : "Unable to load threat intelligence.");
-        }
-      } finally {
-        if (isActive) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadInitialIntel();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="space-y-8 pb-20">
-      <section className="rounded-[2.5rem] border border-white/10 bg-zinc-950/70 p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-          <Globe className="h-48 w-48 text-indigo-500 animate-[spin_60s_linear_infinite]" />
+      
+      {/* ─── HEADER SECTION ─── */}
+      <section className="rounded-[2.5rem] border border-white/10 bg-zinc-950/70 p-8 sm:p-12 relative overflow-hidden group">
+        {/* Animated Background Element */}
+        <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+          <Globe className="h-64 w-64 text-indigo-500 animate-[spin_100s_linear_infinite]" />
         </div>
         
-        <div className="max-w-2xl relative z-10">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-indigo-300">
-            <Globe className="h-3 w-3 text-indigo-400" />
-            Verified Global Intelligence
+        <div className="max-w-3xl relative z-10">
+          <div className="flex flex-wrap items-center gap-4 mb-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-indigo-300">
+              <Globe className="h-3 w-3 text-indigo-400" />
+              Verified Global Intelligence
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-500">
+              <Timer className="h-3 w-3" />
+              Auto-Sync: {formatTime(nextRefresh)}
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-white sm:text-5xl tracking-tight">Global Threat Feed</h1>
-          <p className="mt-4 text-zinc-400 text-lg leading-relaxed">
-            Real-time monitoring of global recruitment fraud, powered by NewsAPI and categorized by our neural network for your protection.
+
+          <h1 className="text-4xl font-bold text-white sm:text-6xl tracking-tight leading-tight">
+            Global <span className="bg-gradient-to-r from-indigo-400 to-fuchsia-400 bg-clip-text text-transparent">Threat Feed</span>
+          </h1>
+          <p className="mt-6 text-zinc-400 text-lg leading-relaxed">
+            Real-time monitoring of recruitment fraud and phishing campaigns worldwide. 
+            Powered by NewsAPI and our neural assessment engine.
           </p>
           
-          <button 
-            onClick={() => void fetchIntel()}
-            disabled={isRefreshing}
-            className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-sm font-semibold hover:bg-white/10 transition-all disabled:opacity-50"
-          >
-            <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh Intelligence
-          </button>
+          <div className="mt-8 flex flex-wrap items-center gap-4">
+            <button 
+              onClick={() => void fetchIntel()}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-all disabled:opacity-50 shadow-xl shadow-white/5"
+            >
+              <RefreshCcw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Sync Intelligence
+            </button>
+            <div className="text-xs font-mono text-zinc-600 uppercase tracking-widest px-4 border-l border-white/10">
+              Active Nodes: 128 <br/>
+              Status: SECURE
+            </div>
+          </div>
         </div>
       </section>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* ─── GRID SECTION ─── */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
-          Array(4).fill(0).map((_, i) => (
-            <div key={i} className="h-64 rounded-3xl bg-white/[0.02] border border-white/5 animate-pulse" />
+          Array(6).fill(0).map((_, i) => (
+            <div key={i} className="h-[420px] rounded-[2.5rem] bg-white/[0.02] border border-white/5 animate-pulse" />
           ))
         ) : error ? (
-          <div className="md:col-span-2 rounded-3xl border border-red-500/20 bg-red-500/5 p-6 text-sm text-red-200">
-            {error}
+          <div className="md:col-span-2 lg:col-span-3 rounded-3xl border border-red-500/20 bg-red-500/5 p-12 text-center">
+            <ShieldAlert className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-white mb-2">Network Interruption</h3>
+            <p className="text-zinc-500 max-w-sm mx-auto mb-6">{error}</p>
+            <button onClick={() => void fetchIntel()} className="px-6 py-2 bg-red-500/10 text-red-400 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-all">
+              Re-establish Connection
+            </button>
           </div>
         ) : (
           <AnimatePresence>
             {intel.map((item, i) => (
               <motion.article
-                key={item.title}
-                initial={{ opacity: 0, y: 20 }}
+                key={item.url + i}
+                initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/50 p-6 sm:p-8 hover:border-indigo-500/30 transition-all hover:bg-zinc-900/40"
+                onClick={() => window.open(item.url, '_blank')}
+                className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/50 hover:border-indigo-500/40 transition-all hover:bg-zinc-900/40 cursor-pointer shadow-2xl"
               >
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
-                      item.risk === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 
-                      item.risk === 'High' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                      'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                {/* Image Header */}
+                <div className="relative h-48 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent z-10" />
+                  <img 
+                    src={item.image || "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800"} 
+                    alt={item.title}
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale-[0.5] group-hover:grayscale-0"
+                  />
+                  <div className="absolute top-4 left-4 z-20">
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border backdrop-blur-md ${
+                      item.risk === 'Critical' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
+                      item.risk === 'High' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
+                      'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
                     }`}>
                       {item.risk} Risk
                     </div>
-                    <div className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Confidence: {item.confidence}%</div>
                   </div>
-                  
-                  <h3 className="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors">{item.title}</h3>
-                  <p className="text-sm text-zinc-400 leading-relaxed">{item.summary}</p>
                 </div>
 
-                <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-6">
-                  <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-                    Sector: <span className="text-zinc-300">{item.target}</span>
+                {/* Content */}
+                <div className="flex-1 p-6 sm:p-8 flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest">{item.target} Sector</span>
+                      <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Confidence: {item.confidence}%</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-2">
+                      {item.title}
+                    </h3>
+                    <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3">
+                      {item.summary}
+                    </p>
                   </div>
-                  <button className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-all">
-                    <ArrowUpRight className="h-5 w-5" />
-                  </button>
+
+                  <div className="mt-8 flex items-center justify-between pt-6 border-t border-white/5">
+                    <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 uppercase">
+                      <ExternalLink className="h-3 w-3" />
+                      View Source
+                    </div>
+                    <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-indigo-500 transition-all group-hover:shadow-lg group-hover:shadow-indigo-500/20">
+                      <ArrowUpRight className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
                 </div>
               </motion.article>
             ))}
