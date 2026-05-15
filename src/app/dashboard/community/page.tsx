@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
-import { db } from "@/firebase/config";
 import { Users, AlertTriangle, ShieldAlert, Clock, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -12,27 +10,46 @@ interface ScamReport {
   description: string;
   scamType: string;
   riskLevel: string;
-  timestamp: any;
+  timestamp: { seconds?: number } | string | null;
   platform: string;
 }
 
 import ReportScamModal from "@/components/ReportScamModal";
 
+function formatReportDate(timestamp: ScamReport["timestamp"]) {
+  if (timestamp && typeof timestamp === "object" && typeof timestamp.seconds === "number") {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  }
+
+  if (typeof timestamp === "string" || timestamp instanceof Date) {
+    return new Date(timestamp).toLocaleDateString();
+  }
+
+  return "Unknown";
+}
+
 export default function CommunityPage() {
   const [reports, setReports] = useState<ScamReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchReports() {
       try {
         const response = await fetch("/api/community");
         const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Unable to load community intelligence.");
+        }
+
         if (result.success) {
           setReports(result.data);
         }
       } catch (error) {
         console.error("Error fetching reports:", error);
+        setError(error instanceof Error ? error.message : "Unable to load community intelligence.");
       } finally {
         setLoading(false);
       }
@@ -74,6 +91,21 @@ export default function CommunityPage() {
             <Clock className="h-10 w-10 text-zinc-700 animate-spin" />
             <span className="text-zinc-500 font-mono text-xs uppercase tracking-widest">Syncing with Global Database...</span>
           </div>
+        ) : error ? (
+          <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-8">
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.24em] text-red-300">
+              Feed Offline
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold text-white">Community thread is temporarily unavailable</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400">{error}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-6 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-black transition hover:bg-zinc-200"
+            >
+              Retry Feed
+            </button>
+          </div>
         ) : reports.length === 0 ? (
           <div className="text-center py-20 border border-white/5 rounded-3xl bg-white/[0.02]">
             <ShieldAlert className="h-12 w-12 text-zinc-800 mx-auto" />
@@ -103,7 +135,7 @@ export default function CommunityPage() {
                   <div className="flex items-center gap-4 pt-2">
                     <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                       <Clock className="h-3.5 w-3.5" />
-                      {new Date(report.timestamp?.seconds * 1000).toLocaleDateString()}
+                      {formatReportDate(report.timestamp)}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-indigo-400 font-medium">
                       <AlertTriangle className="h-3.5 w-3.5" />

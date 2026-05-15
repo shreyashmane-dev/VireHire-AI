@@ -2,27 +2,56 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { Flag, FileText, AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
+import { Flag, FileText, CheckCircle2, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+
+type UserReport = {
+  id: string;
+  title: string;
+  scamType: string;
+  timestamp: { seconds?: number } | string | null;
+};
+
+function formatReportDate(timestamp: UserReport["timestamp"]) {
+  if (timestamp && typeof timestamp === "object" && typeof timestamp.seconds === "number") {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  }
+
+  if (typeof timestamp === "string" || timestamp instanceof Date) {
+    return new Date(timestamp).toLocaleDateString();
+  }
+
+  return "Unknown";
+}
 
 export default function ReportsPage() {
   const { user } = useAuth();
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<UserReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchUserReports() {
-      if (!user) return;
+      if (!user) {
+        setReports([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await fetch(`/api/community?userId=${user.uid}`);
         const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Unable to load your archived reports.");
+        }
+
         if (result.success) {
           setReports(result.data);
         }
       } catch (error) {
         console.error("Error fetching user reports:", error);
+        setError(error instanceof Error ? error.message : "Unable to load your archived reports.");
       } finally {
         setLoading(false);
       }
@@ -49,10 +78,25 @@ export default function ReportsPage() {
           Array(3).fill(0).map((_, i) => (
             <div key={i} className="h-24 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse" />
           ))
+        ) : error ? (
+          <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-8">
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.24em] text-red-300">
+              Archive Unavailable
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold text-white">Your reports could not be loaded</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400">{error}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-6 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-black transition hover:bg-zinc-200"
+            >
+              Retry Archive
+            </button>
+          </div>
         ) : reports.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-white/10 rounded-3xl">
             <FileText className="h-12 w-12 text-zinc-800 mx-auto" />
-            <p className="mt-4 text-zinc-500 font-medium">You haven't published any reports yet.</p>
+            <p className="mt-4 text-zinc-500 font-medium">You haven&apos;t published any reports yet.</p>
           </div>
         ) : (
           reports.map((report, i) => (
@@ -72,7 +116,9 @@ export default function ReportsPage() {
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-[10px] font-mono text-zinc-500 uppercase">{report.scamType}</span>
                     <span className="w-1 h-1 rounded-full bg-zinc-700" />
-                    <span className="text-[10px] font-mono text-zinc-500 uppercase">{new Date(report.timestamp?.seconds * 1000).toLocaleDateString()}</span>
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase">
+                      {formatReportDate(report.timestamp)}
+                    </span>
                   </div>
                 </div>
               </div>

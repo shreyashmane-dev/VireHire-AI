@@ -24,7 +24,7 @@ const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: Search, label: "Analyze", href: "/dashboard/analyze" },
   { icon: Activity, label: "Threat Feed", href: "/dashboard/threat-feed" },
-  { icon: Users, label: "Community", href: "/dashboard/community" },
+  { icon: Users, label: "Community Thread", href: "/dashboard/community" },
   { icon: Flag, label: "Reports", href: "/dashboard/reports" },
   { icon: MessageSquare, label: "AI Assistant", href: "/dashboard/chat" },
   { icon: UserCircle, label: "Profile", href: "/dashboard/profile" },

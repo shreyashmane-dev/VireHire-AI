@@ -1,10 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const geistSans = Geist({ subsets: ["latin"], variable: "--font-heading" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const viewport: Viewport = {
   themeColor: "#000000",
@@ -68,7 +63,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white selection:bg-indigo-500/30 selection:text-indigo-200`}
+        className="antialiased bg-black text-white selection:bg-indigo-500/30 selection:text-indigo-200"
       >
         <AuthProvider>
           {children}

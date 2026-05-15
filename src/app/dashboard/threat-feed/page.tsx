@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Activity, ShieldAlert, Zap, Globe, RefreshCcw, ArrowUpRight } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Zap, Globe, RefreshCcw, ArrowUpRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ThreatIntel {
@@ -16,25 +16,64 @@ export default function ThreatFeedPage() {
   const [intel, setIntel] = useState<ThreatIntel[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchIntel = async () => {
+  const fetchIntel = useCallback(async () => {
     setIsRefreshing(true);
+    setError(null);
     try {
       const response = await fetch("/api/news");
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
+
       const result = await response.json();
       if (result.success) {
         setIntel(result.data);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error fetching threat intel:", error);
+      setError(error instanceof Error ? error.message : "Unable to load threat intelligence.");
     } finally {
-      setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchIntel();
+    let isActive = true;
+
+    async function loadInitialIntel() {
+      try {
+        const response = await fetch("/api/news");
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Server error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (isActive && result.success) {
+          setIntel(result.data);
+        }
+      } catch (error: unknown) {
+        console.error("Error fetching threat intel:", error);
+        if (isActive) {
+          setError(error instanceof Error ? error.message : "Unable to load threat intelligence.");
+        }
+      } finally {
+        if (isActive) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadInitialIntel();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   return (
@@ -55,7 +94,7 @@ export default function ThreatFeedPage() {
           </p>
           
           <button 
-            onClick={fetchIntel}
+            onClick={() => void fetchIntel()}
             disabled={isRefreshing}
             className="mt-6 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-sm font-semibold hover:bg-white/10 transition-all disabled:opacity-50"
           >
@@ -70,6 +109,10 @@ export default function ThreatFeedPage() {
           Array(4).fill(0).map((_, i) => (
             <div key={i} className="h-64 rounded-3xl bg-white/[0.02] border border-white/5 animate-pulse" />
           ))
+        ) : error ? (
+          <div className="md:col-span-2 rounded-3xl border border-red-500/20 bg-red-500/5 p-6 text-sm text-red-200">
+            {error}
+          </div>
         ) : (
           <AnimatePresence>
             {intel.map((item, i) => (

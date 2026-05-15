@@ -1,57 +1,99 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { ShieldAlert, ArrowLeft, Home, Terminal, SearchX } from "lucide-react";
 import Link from "next/link";
-import { ShieldAlert, Home, ChevronRight } from "lucide-react";
-import Navbar from "@/components/Navbar";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col bg-black text-white">
-      <Navbar />
-      
-      <main className="flex-1 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/10 rounded-full blur-[128px] pointer-events-none" />
-        
-        <div className="relative z-10 max-w-2xl mx-auto text-center space-y-8">
-          <div className="relative inline-block">
-            <div className="text-[150px] font-bold leading-none bg-clip-text text-transparent bg-gradient-to-b from-white to-white/10 select-none">
-              404
-            </div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
-              <ShieldAlert className="w-24 h-24 text-indigo-500 animate-pulse drop-shadow-[0_0_15px_rgba(99,102,241,0.5)]" />
-            </div>
+    <div className="min-h-screen bg-black flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Gradients */}
+      <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-indigo-500/10 blur-[120px]" />
+      <div className="absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-fuchsia-500/10 blur-[120px]" />
+
+      <div className="max-w-3xl w-full relative z-10 rounded-[2rem] border border-white/10 bg-zinc-950/80 p-8 sm:p-10">
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="mb-8 inline-flex items-center justify-center h-24 w-24 rounded-3xl bg-red-500/10 border border-red-500/20"
+        >
+          <ShieldAlert className="h-12 w-12 text-red-500" />
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-500">
+            Error Code: 404_NOT_FOUND
           </div>
-          
-          <div>
-            <h1 className="text-3xl font-bold mb-4">Signal Lost: Sector Not Found</h1>
-            <p className="text-zinc-400 text-lg max-w-lg mx-auto">
-              The intelligence sector you&apos;re attempting to access does not exist or has been redacted from the terminal.
+          <h1 className="text-4xl font-bold text-white sm:text-6xl tracking-tight mb-6">
+            Node Not Reachable
+          </h1>
+          <p className="text-zinc-400 text-lg leading-relaxed mb-10">
+            The encrypted intelligence node you are trying to access has been relocated or does not exist in our global registry.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.16 }}
+          className="mb-10 grid gap-4 sm:grid-cols-2"
+        >
+          <div className="rounded-3xl border border-white/8 bg-white/[0.03] p-5 text-left">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+              <SearchX className="h-4 w-4 text-indigo-400" />
+              What happened
+            </div>
+            <p className="text-sm leading-6 text-zinc-400">
+              This route may have been renamed, removed, or linked incorrectly from another part of the dashboard.
             </p>
           </div>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link 
-              href="/"
-              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center justify-center gap-2 transition-all w-full sm:w-auto neon-glow"
-            >
-              <Home className="w-5 h-5" />
-              Return to Terminal
-            </Link>
-            <Link 
-              href="/dashboard"
-              className="px-6 py-3 rounded-xl bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-white font-medium flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
-            >
-              Access Dashboard
-              <ChevronRight className="w-5 h-5" />
-            </Link>
+          <div className="rounded-3xl border border-white/8 bg-white/[0.03] p-5 text-left">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+              <Terminal className="h-4 w-4 text-fuchsia-400" />
+              Best next step
+            </div>
+            <p className="text-sm leading-6 text-zinc-400">
+              Head back to the dashboard and reopen the tool from the main navigation so we can re-establish route state cleanly.
+            </p>
           </div>
-        </div>
-        
-        <div className="absolute bottom-8 left-0 w-full text-center">
-          <span className="text-xs font-mono text-zinc-600 uppercase tracking-widest">
-            ERROR_CODE: 404_NOT_FOUND // VERIHIRE_OS
-          </span>
-        </div>
-      </main>
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+        >
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-black font-bold hover:bg-zinc-200 transition-all w-full sm:w-auto"
+          >
+            <Home className="h-4 w-4" />
+            Back to Command Center
+          </Link>
+          <button
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all w-full sm:w-auto"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Return to Safety
+          </button>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          transition={{ delay: 0.4 }}
+          className="mt-16 flex items-center justify-center gap-2 text-zinc-600 font-mono text-[10px] uppercase tracking-widest"
+        >
+          <Terminal className="h-3 w-3" />
+          VeriHire Secure Gateway v2.4
+        </motion.div>
+      </div>
     </div>
   );
 }

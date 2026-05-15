@@ -2,23 +2,42 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 
+type CommunityReportRecord = {
+  id: string;
+  timestamp?: { seconds?: number } | null;
+};
+
+function getTimestampSeconds(value: CommunityReportRecord["timestamp"]) {
+  return typeof value?.seconds === "number" ? value.seconds : 0;
+}
+
 export async function GET(req: Request) {
   try {
+    if (!adminDb) {
+      return NextResponse.json({ error: "Firebase Admin not initialized." }, { status: 500 });
+    }
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
-    let query: any = adminDb.collection("reports").orderBy("timestamp", "desc");
-    
     if (userId) {
-      query = query.where("userId", "==", userId);
+      const snapshot = await adminDb.collection("reports").where("userId", "==", userId).limit(50).get();
+      const reports = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          timestamp: doc.data().timestamp ? { seconds: doc.data().timestamp.seconds } : null,
+        }) as CommunityReportRecord)
+        .sort((a, b) => getTimestampSeconds(b.timestamp) - getTimestampSeconds(a.timestamp));
+
+      return NextResponse.json({ success: true, data: reports });
     }
 
-    const snapshot = await query.limit(20).get();
+    const snapshot = await adminDb.collection("reports").orderBy("timestamp", "desc").limit(20).get();
 
-    const reports = snapshot.docs.map(doc => ({
+    const reports = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-      timestamp: doc.data().timestamp ? { seconds: doc.data().timestamp.seconds } : null
+      timestamp: doc.data().timestamp ? { seconds: doc.data().timestamp.seconds } : null,
     }));
 
     return NextResponse.json({ success: true, data: reports });
@@ -30,17 +49,31 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    if (!adminDb) {
+      return NextResponse.json({ error: "Firebase Admin not initialized." }, { status: 500 });
+    }
     const body = await req.json();
     const { title, description, scamType, riskLevel, platform, userId, userName } = body;
 
+    if (
+      !title?.trim() ||
+      !description?.trim() ||
+      !scamType?.trim() ||
+      !riskLevel?.trim() ||
+      !platform?.trim() ||
+      !userId?.trim()
+    ) {
+      return NextResponse.json({ error: "Missing required report fields." }, { status: 400 });
+    }
+
     const docRef = await adminDb.collection("reports").add({
-      title,
-      description,
-      scamType,
-      riskLevel,
-      platform,
-      userId,
-      userName,
+      title: title.trim(),
+      description: description.trim(),
+      scamType: scamType.trim(),
+      riskLevel: riskLevel.trim(),
+      platform: platform.trim(),
+      userId: userId.trim(),
+      userName: typeof userName === "string" && userName.trim() ? userName.trim() : "Anonymous Agent",
       timestamp: FieldValue.serverTimestamp(),
     });
 

@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertOctagon, RefreshCw, Home } from "lucide-react";
+import { motion } from "framer-motion";
+import { AlertTriangle, Home, RefreshCw, ShieldAlert, TerminalSquare } from "lucide-react";
 
 export default function Error({
   error,
@@ -12,58 +13,88 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error("Application Error:", error);
+    console.error(error);
   }, [error]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4 relative overflow-hidden">
-      {/* Background Gradients */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-red-600/10 rounded-full blur-[128px] pointer-events-none" />
-      
-      <div className="relative z-10 glass max-w-xl w-full p-8 rounded-2xl border border-red-500/20 text-center space-y-6">
-        <div className="flex justify-center">
-          <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center border border-red-500/20">
-            <AlertOctagon className="w-10 h-10 text-red-500" />
+    <div className="min-h-screen bg-black text-white flex items-center justify-center overflow-hidden p-6">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.14),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.14),transparent_35%)]" />
+
+      <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/80 shadow-2xl">
+        <div className="border-b border-white/10 bg-white/[0.03] px-6 py-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.24em] text-red-300">
+            Incident Captured
           </div>
-        </div>
-        
-        <div>
-          <h1 className="text-2xl font-bold mb-2">System Fault Detected</h1>
-          <p className="text-zinc-400">
-            The terminal encountered an unexpected error while processing your request. 
-            Our neural nets have logged the anomaly.
-          </p>
         </div>
 
-        {process.env.NODE_ENV === 'development' && (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-left overflow-auto max-h-32 text-xs font-mono text-red-400">
-            {error.message}
+        <div className="grid gap-10 p-8 md:grid-cols-[0.95fr_1.05fr] md:p-10">
+          <div className="space-y-6">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="inline-flex h-20 w-20 items-center justify-center rounded-3xl border border-red-500/20 bg-red-500/10"
+            >
+              <ShieldAlert className="h-10 w-10 text-red-400" />
+            </motion.div>
+
+            <div className="space-y-4">
+              <h1 className="text-4xl font-bold tracking-tight">Mission Interrupted</h1>
+              <p className="text-base leading-7 text-zinc-400">
+                Something failed while rendering this part of the dashboard. Your session is still intact, and we
+                can safely retry without losing your navigation state.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-400" />
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold text-white">Suggested recovery</div>
+                  <p className="text-sm leading-6 text-zinc-400">
+                    Retry this route first. If the same error returns, go back to the dashboard and reopen the feature.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-        
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-          <button
-            onClick={() => reset()}
-            className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium flex items-center justify-center gap-2 transition-all w-full sm:w-auto shadow-[0_0_15px_rgba(220,38,38,0.3)]"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Reboot Subsystem
-          </button>
-          <Link 
-            href="/"
-            className="px-6 py-3 rounded-xl bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-white font-medium flex items-center justify-center gap-2 transition-all w-full sm:w-auto"
-          >
-            <Home className="w-5 h-5" />
-            Return Home
-          </Link>
+
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-white/10 bg-zinc-900/60 p-6">
+              <div className="mb-3 flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.24em] text-zinc-500">
+                <TerminalSquare className="h-3.5 w-3.5" />
+                Recovery Panel
+              </div>
+              <div className="space-y-3 text-sm text-zinc-300">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                  Route error boundaries are active and ready to retry this segment.
+                </div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                  {error.digest ? `Trace ID: ${error.digest}` : "Trace ID is unavailable for this incident."}
+                </div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3">
+                  {error.message ? `Latest message: ${error.message}` : "No error message was exposed to the client."}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                onClick={() => reset()}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-bold text-black transition hover:bg-zinc-200"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Retry Route
+              </button>
+              <Link
+                href="/dashboard"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                <Home className="h-4 w-4" />
+                Go to Dashboard
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
-      
-      <div className="absolute bottom-8 left-0 w-full text-center">
-        <span className="text-xs font-mono text-zinc-600 uppercase tracking-widest">
-          ERROR_CODE: 500_SYSTEM_FAULT // VERIHIRE_OS
-        </span>
       </div>
     </div>
   );

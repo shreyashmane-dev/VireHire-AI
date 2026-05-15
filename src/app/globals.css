@@ -13,9 +13,9 @@
   --color-safe: #22c55e;
   --color-info: #3b82f6;
 
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-heading: "Geist Sans", "Satoshi", sans-serif;
-  --font-mono: "Geist Mono", monospace;
+  --font-sans: "Segoe UI", "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-heading: "Trebuchet MS", "Aptos Display", "Segoe UI", sans-serif;
+  --font-mono: "Cascadia Code", "SFMono-Regular", "Consolas", monospace;
 }
 
 :root {
