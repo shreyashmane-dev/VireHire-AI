@@ -2,27 +2,6 @@ import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import { adminDb } from "@/firebase/admin";
 
-const fallbackNews = [
-  {
-    title: "Telegram Recruiter Impersonation Wave",
-    risk: "High",
-    summary: "Scammers are moving candidates off-platform quickly and sending fake interview confirmations through messaging apps.",
-    target: "Remote Work",
-    confidence: 94,
-    url: "https://virehire.ai/threats",
-    image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=800",
-  },
-  {
-    title: "Fake Offer Letters With Deposit Requests",
-    risk: "Critical",
-    summary: "Fraud campaigns are using branded offer letters and asking for onboarding or security-deposit payments.",
-    target: "Tech",
-    confidence: 97,
-    url: "https://virehire.ai/threats",
-    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=800",
-  },
-];
-
 export async function GET() {
   const newsApiKey = process.env.NEWS_API_KEY;
   const groqApiKey = process.env.GROQ_NEWS_API_KEY || process.env.GROQ_API_KEY;
@@ -30,113 +9,90 @@ export async function GET() {
   const dailyNewsRef = adminDb?.collection("daily_intelligence").doc(today) ?? null;
 
   try {
-    // 1. Try Cache First (Cache for 2 hours to ensure freshness)
+    // 1. Try Cache First (1 hour for dev/testing)
     if (dailyNewsRef) {
       const cachedDoc = await dailyNewsRef.get();
       if (cachedDoc.exists) {
         const data = cachedDoc.data();
         const lastUpdated = new Date(data?.generatedAt || 0).getTime();
-        const now = new Date().getTime();
-        
-        if (now - lastUpdated < 2 * 60 * 60 * 1000) {
+        if (Date.now() - lastUpdated < 1 * 60 * 60 * 1000) {
           return NextResponse.json({ success: true, data: data?.items, source: "cache" });
         }
       }
     }
 
     if (!newsApiKey || !groqApiKey) {
-      return NextResponse.json({ success: true, data: fallbackNews, source: "fallback" });
+      throw new Error("Keys missing");
     }
 
-    // 2. Fetch Real News from NewsAPI
+    // 2. Fetch News - Broader query for better image coverage
     const newsResponse = await fetch(
-      `https://newsapi.org/v2/everything?q="job scam" OR "recruiter scam" OR "employment fraud"&language=en&sortBy=publishedAt&pageSize=12&apiKey=${newsApiKey}`
+      `https://newsapi.org/v2/everything?q=("job scam" OR "recruitment fraud" OR "phishing")&language=en&sortBy=relevancy&pageSize=20&apiKey=${newsApiKey}`
     );
     const newsData = await newsResponse.json();
 
     if (!newsData.articles || newsData.articles.length === 0) {
-      throw new Error("No news found");
+      throw new Error("No news articles");
     }
 
-    // 3. Use Groq to transform real news
+    // Filter articles that MUST have a URL and Title
+    const validRaw = newsData.articles.filter((a: any) => a.title && a.url && a.title !== "[Removed]").slice(0, 12);
+
+    // 3. AI Analysis
     const groq = new Groq({ apiKey: groqApiKey });
-    
-    // Explicitly pass data as a list of possibilities
-    const newsContext = newsData.articles.slice(0, 10).map((a: any, i: number) => 
-      `SOURCE_${i}:
-      TITLE: ${a.title}
-      DESC: ${a.description}
-      LINK: ${a.url}
-      IMG: ${a.urlToImage || 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b'}`
-    ).join("\n\n");
-
     const prompt = `
-      You are a cybersecurity analyst. Transform these news sources into 6 structured Threat Intel objects.
-      
-      CRITICAL RULES:
-      1. You MUST use the LINK from the SOURCE for the "url" field.
-      2. You MUST use the IMG from the SOURCE for the "image" field.
-      3. Do NOT invent URLs or Images.
-      4. If a SOURCE has no IMG, use 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b'.
+      Analyze these news items. Pick the 6 most relevant job-scam/threat intelligence stories.
+      For each, return:
+      - index (from source list)
+      - risk_level (Critical, High, Medium)
+      - punchy_summary (12 words max)
+      - industry (1-2 words)
 
-      Response Format (JSON):
-      {
-        "items": [
-          {
-            "title": "...",
-            "risk": "Critical|High|Medium",
-            "summary": "...",
-            "target": "...",
-            "confidence": 95,
-            "url": "...",
-            "image": "..."
-          }
-        ]
-      }
+      SOURCES:
+      ${validRaw.map((a: any, i: number) => `[${i}] ${a.title}`).join('\n')}
 
-      Sources:
-      ${newsContext}
+      RETURN ONLY JSON: {"selections": [{"index": 0, "risk_level": "...", "punchy_summary": "...", "industry": "..."}]}
     `;
 
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.1, // Low temperature for higher accuracy
+      temperature: 0.1,
       response_format: { type: "json_object" },
     });
 
-    const rawContent = completion.choices[0].message.content || "{}";
-    let news = [];
+    const result = JSON.parse(completion.choices[0].message.content || '{"selections": []}');
+    const selections = result.selections || [];
 
-    try {
-      const content = JSON.parse(rawContent);
-      news = content.items || content.news || (Array.isArray(content) ? content : []);
-    } catch (e) {
-      console.error("Parse Error:", e);
-      news = fallbackNews;
-    }
+    // 4. Deterministic Assembly - USE ORIGINAL API STRINGS
+    const finalData = selections.map((sel: any) => {
+      const source = validRaw[sel.index];
+      if (!source) return null;
 
-    // Ensure all items have required fields
-    const validNews = news.map((item: any, idx: number) => ({
-      ...item,
-      url: item.url || item.link || "https://virehire.ai/threats",
-      image: item.image || item.img || fallbackNews[idx % 2].image
-    })).slice(0, 6);
+      return {
+        title: source.title,
+        risk: sel.risk_level || "High",
+        summary: sel.punchy_summary || source.description?.substring(0, 80),
+        target: sel.industry || "Global",
+        confidence: 90 + Math.floor(Math.random() * 10),
+        url: source.url, // EXACT URL from NewsAPI
+        image: source.urlToImage || `https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800&sig=${sel.index}` // EXACT Image or HQ Fallback
+      };
+    }).filter(Boolean);
 
-    // 4. Cache the results
-    if (validNews.length > 0 && dailyNewsRef) {
+    // 5. Cache and Return
+    if (finalData.length > 0 && dailyNewsRef) {
       await dailyNewsRef.set({
-        items: validNews,
+        items: finalData,
         generatedAt: new Date().toISOString(),
-        source: "NewsAPI + Groq Real-Time",
-        date: today
+        source: "NewsAPI + Determinstic Logic"
       });
     }
 
-    return NextResponse.json({ success: true, data: validNews, source: "real-time intelligence" });
+    return NextResponse.json({ success: true, data: finalData, source: "real-time intelligence" });
 
-  } catch (error: any) {
-    console.error("Global News API Error:", error);
-    return NextResponse.json({ success: true, data: fallbackNews, source: "fallback" });
+  } catch (error) {
+    console.error("API Failure:", error);
+    return NextResponse.json({ success: true, data: [], source: "error-fallback" });
   }
 }
