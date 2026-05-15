@@ -1,74 +1,103 @@
 # VeriHire AI: Neural Recruitment Intelligence Hub
 
-**VeriHire AI** is a cutting-edge, enterprise-grade cybersecurity platform designed to protect job seekers and recruiters from the global surge in recruitment fraud. Built with a cinematic "Neural Terminal" aesthetic, it leverages advanced AI to provide real-time threat detection and community-driven intelligence.
+**VeriHire AI** is a state-of-the-art, enterprise-grade cybersecurity platform engineered to shield job seekers, freelancers, and recruiters from the global epidemic of recruitment fraud. Built with a high-fidelity "Neural Terminal" aesthetic, it combines real-time threat detection, AI forensic analysis, and community-driven collective intelligence.
 
-![VeriHire AI Overview](https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=1200)
+---
 
-## 🛡️ Core Capabilities
+## 🛡️ Core Capabilities & Features
 
-- **Neural Threat Feed**: Real-time aggregation of job scams worldwide via NewsAPI, analyzed and ranked by the Groq Llama-3.3 engine.
-- **AI Intelligence Agent**: A cyberpunk-themed chat interface for deep forensic analysis of suspicious job offers, emails, and recruiter profiles.
-- **Community Scam Watch**: A collective intelligence hub where users report and verify fraud clusters to protect the network.
-- **Risk Assessment Gauge**: Instant 0-100 risk scoring based on linguistic patterns, domain verification, and behavioral analysis.
-- **Cinematic UX**: A premium, high-fidelity interface featuring glassmorphism, fluid animations (Framer Motion), and a futuristic command-center layout.
+### 1. Neural Threat Intelligence Feed
+Real-time monitoring of global fraud clusters. The platform aggregates live job scam reports from worldwide news sources, processes them through our **Groq Llama-3.3-70B engine**, and presents them as actionable intelligence.
+- **Deterministic Mapping**: Ensures 100% link integrity and authentic news thumbnails.
+- **Risk Scoring**: Instant classification (Critical, High, Medium) based on threat severity.
 
-## 🚀 Tech Stack
+### 2. Forensic AI Chat (Neural Terminal)
+A cinematic, terminal-style interface designed for deep analysis of suspicious communications.
+- **Risk Assessment Gauge**: Visualizes threat levels from 0 to 100.
+- **Pattern Recognition**: Analyzes linguistic markers, domain spoofing, and social engineering tactics.
+- **Real-time Status Tickers**: Continuous monitoring of the intelligence stream during analysis.
 
-- **Framework**: [Next.js 14+](https://nextjs.org/) (App Router)
-- **Styling**: Vanilla CSS / Tailwind (for core layout) with custom Glassmorphism tokens.
-- **AI Engine**: [Groq](https://groq.com/) (Llama-3.3-70B-Versatile)
-- **Backend/Auth**: [Firebase](https://firebase.google.com/) (Firestore & Authentication)
-- **Animations**: [Framer Motion](https://www.framer.com/motion/)
-- **Icons**: [Lucide React](https://lucide.dev/)
+### 3. Community Scam Watch
+A collective defense hub where users contribute to a global database of verified threats.
+- **Peer Verification**: High-fidelity reports from verified "VeriHire Agents."
+- **Fraud Mapping**: Tracking of cross-platform scam campaigns (LinkedIn, WhatsApp, Telegram, etc.).
 
-## 🛠️ Getting Started
+### 4. Advanced Security Suite
+- **Danger Zone**: Full data sovereignty with a one-click account and data purge protocol.
+- **Persistence Layer**: Seamless session management using Firebase Local Persistence.
+- **Premium UX**: Framer Motion animations, glassmorphism, and responsive cinematic layouts.
 
-### Prerequisites
-- Node.js 18+
-- Firebase Project
-- Groq API Key
-- NewsAPI Key
+---
 
-### Installation
+## 🚀 Installation & Setup Guide
 
-1. **Clone the repository**
+### 📋 Prerequisites
+- **Node.js**: Version 18.x or higher
+- **Firebase**: A project with Firestore and Authentication (Google OAuth) enabled.
+- **Groq API**: An active API key for neural analysis.
+- **NewsAPI**: An active API key for the global threat feed.
+
+### 🛠️ Step-by-Step Installation
+
+1. **Clone the Repository**
    ```bash
    git clone https://github.com/shreyashmane-dev/VireHire-AI.git
    cd VireHire-AI
    ```
 
-2. **Install dependencies**
+2. **Install Dependencies**
    ```bash
    npm install
    ```
 
-3. **Configure Environment Variables**
-   Create a `.env.local` file:
+3. **Environment Configuration**
+   Create a `.env.local` file in the root directory and populate it with your credentials:
    ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=your_key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_domain
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_bucket
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_id
-   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+   # Firebase Client SDK
+   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=verihire-ai.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=verihire-ai
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=verihire-ai.appspot.com
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+   NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef
 
-   FIREBASE_PROJECT_ID=your_id
-   FIREBASE_CLIENT_EMAIL=your_email
-   FIREBASE_PRIVATE_KEY="your_private_key"
+   # Firebase Admin (Required for API Routes)
+   FIREBASE_PROJECT_ID=verihire-ai
+   FIREBASE_CLIENT_EMAIL=firebase-adminsdk@...
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 
-   GROQ_API_KEY=your_groq_key
-   NEWS_API_KEY=your_news_api_key
+   # AI Engines & Intelligence
+   GROQ_API_KEY=gsk_...
+   GROQ_NEWS_API_KEY=gsk_... # Optional: Dedicated quota for threat feed
+   NEWS_API_KEY=c88000e1...
    ```
 
-4. **Run the development server**
+4. **Initialize Firebase**
+   - Ensure Firestore is in **Native Mode**.
+   - Create a collection named `reports` for community data.
+   - Create a collection named `daily_intelligence` for news caching.
+
+5. **Run Development Server**
    ```bash
    npm run dev
    ```
-
-## 🌐 Community & Security
-
-VeriHire AI thrives on collective defense. Our **Community Scam Watch** allows users to publish verified intelligence, which is then mapped to global threat clusters. All data is handled with enterprise-grade encryption and users have full control over their data (including a complete "Danger Zone" purge option).
+   Navigate to `http://localhost:3000` to access the neural terminal.
 
 ---
 
-Developed with ❤️ by the VeriHire Core Team. Protect your career.
+## 🎨 Visual Intelligence (UI/UX)
+
+| Neural Terminal | Threat Monitoring | Community Intelligence |
+| :--- | :--- | :--- |
+| ![Chat](https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=400) | ![Feed](https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=400) | ![Community](https://images.unsplash.com/photo-1522071823991-b9671f903f70?auto=format&fit=crop&q=80&w=400) |
+| *High-fidelity AI forensic analysis interface.* | *Real-time global scam cluster visualization.* | *Collective defense and verified reports.* |
+
+---
+
+## 🔐 Security Standards
+VeriHire AI follows the **NIST Cybersecurity Framework** guidelines for threat detection and response. All communications are encrypted, and user data is strictly isolated within your Firebase instance.
+
+Developed with a mission to decentralize recruitment security. **Stay Safe. Stay Verified.**
+
+---
+© 2024 VeriHire AI Core Team.
