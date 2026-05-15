@@ -41,7 +41,8 @@ const fallbackNews = [
 ];
 
 export async function GET() {
-  const apiKey = process.env.GROQ_API_KEY;
+  // Dedicated key for Threat Feed keeps its quota separate from the AI Analyzer
+  const apiKey = process.env.GROQ_NEWS_API_KEY || process.env.GROQ_API_KEY;
 
   if (!apiKey) {
     return NextResponse.json({ success: true, data: fallbackNews, source: "fallback" });

@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required report fields." }, { status: 400 });
     }
 
-    const docRef = await adminDb.collection("reports").add({
+    const payload = {
       title: title.trim(),
       description: description.trim(),
       scamType: scamType.trim(),
@@ -75,9 +75,19 @@ export async function POST(req: Request) {
       userId: userId.trim(),
       userName: typeof userName === "string" && userName.trim() ? userName.trim() : "Anonymous Agent",
       timestamp: FieldValue.serverTimestamp(),
-    });
+    };
+    const docRef = await adminDb.collection("reports").add(payload);
+    const createdDoc = await docRef.get();
 
-    return NextResponse.json({ success: true, id: docRef.id });
+    return NextResponse.json({
+      success: true,
+      id: docRef.id,
+      data: {
+        id: docRef.id,
+        ...createdDoc.data(),
+        timestamp: createdDoc.data()?.timestamp ? { seconds: createdDoc.data()?.timestamp.seconds } : null,
+      },
+    });
   } catch (error) {
     console.error("Community POST Error:", error);
     return NextResponse.json({ error: "Failed to publish intelligence" }, { status: 500 });

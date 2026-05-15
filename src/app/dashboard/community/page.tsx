@@ -12,6 +12,7 @@ interface ScamReport {
   riskLevel: string;
   timestamp: { seconds?: number } | string | null;
   platform: string;
+  userName?: string;
 }
 
 import ReportScamModal from "@/components/ReportScamModal";
@@ -58,6 +59,12 @@ export default function CommunityPage() {
     fetchReports();
   }, []);
 
+  const handleReported = (report: ScamReport) => {
+    setReports((current) => [report, ...current]);
+    setError(null);
+    setIsModalOpen(false);
+  };
+
   return (
     <div className="space-y-8">
       <section className="rounded-3xl border border-white/10 bg-zinc-950/70 p-6 sm:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -83,7 +90,7 @@ export default function CommunityPage() {
         </button>
       </section>
 
-      <ReportScamModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <ReportScamModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onReported={handleReported} />
 
       <div className="grid gap-6">
         {loading ? (
@@ -141,6 +148,9 @@ export default function CommunityPage() {
                       <AlertTriangle className="h-3.5 w-3.5" />
                       {report.scamType}
                     </div>
+                    {report.userName ? (
+                      <div className="text-xs text-zinc-500">Reported by {report.userName}</div>
+                    ) : null}
                   </div>
                 </div>
                 

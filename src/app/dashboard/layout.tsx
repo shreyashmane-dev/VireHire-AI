@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Activity,
@@ -38,6 +38,23 @@ type SidebarContentProps = {
 
 function SidebarContent({ onNavigate, pathname }: SidebarContentProps) {
   const { logout } = useAuth();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    const success = await logout();
+    setIsLoggingOut(false);
+
+    if (success) {
+      onNavigate();
+      router.replace("/login");
+    }
+  };
 
   return (
     <>
@@ -67,12 +84,13 @@ function SidebarContent({ onNavigate, pathname }: SidebarContentProps) {
 
       <div className="border-t border-white/10 p-4">
         <button
-          onClick={() => logout()}
+          onClick={() => void handleLogout()}
           className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-white"
           type="button"
+          disabled={isLoggingOut}
         >
           <LogOut className="h-5 w-5" />
-          Logout
+          {isLoggingOut ? "Logging out..." : "Logout"}
         </button>
       </div>
     </>
