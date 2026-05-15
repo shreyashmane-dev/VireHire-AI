@@ -28,7 +28,7 @@ export default function ThreatFeedPage() {
       const response = await fetch("/api/news");
       if (!response.ok) throw new Error("Intelligence stream interrupted.");
       const result = await response.json();
-      if (result.success) {
+      if (result.success && Array.isArray(result.data)) {
         setIntel(result.data);
         setNextRefresh(300); // Reset timer
       }
@@ -66,12 +66,16 @@ export default function ThreatFeedPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleOpenLink = (url: string) => {
+    if (!url || url.includes("virehire.ai/threats")) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="space-y-8 pb-20">
       
       {/* ─── HEADER SECTION ─── */}
       <section className="rounded-[2.5rem] border border-white/10 bg-zinc-950/70 p-8 sm:p-12 relative overflow-hidden group">
-        {/* Animated Background Element */}
         <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
           <Globe className="h-64 w-64 text-indigo-500 animate-[spin_100s_linear_infinite]" />
         </div>
@@ -117,7 +121,7 @@ export default function ThreatFeedPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           Array(6).fill(0).map((_, i) => (
-            <div key={i} className="h-[420px] rounded-[2.5rem] bg-white/[0.02] border border-white/5 animate-pulse" />
+            <div key={`skeleton-${i}`} className="h-[420px] rounded-[2.5rem] bg-white/[0.02] border border-white/5 animate-pulse" />
           ))
         ) : error ? (
           <div className="md:col-span-2 lg:col-span-3 rounded-3xl border border-red-500/20 bg-red-500/5 p-12 text-center">
@@ -129,62 +133,80 @@ export default function ThreatFeedPage() {
             </button>
           </div>
         ) : (
-          <AnimatePresence>
-            {intel.map((item, i) => (
-              <motion.article
-                key={item.url + i}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                onClick={() => window.open(item.url, '_blank')}
-                className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/50 hover:border-indigo-500/40 transition-all hover:bg-zinc-900/40 cursor-pointer shadow-2xl"
-              >
-                {/* Image Header */}
-                <div className="relative h-48 overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent z-10" />
-                  <img 
-                    src={item.image || "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800"} 
-                    alt={item.title}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale-[0.5] group-hover:grayscale-0"
-                  />
-                  <div className="absolute top-4 left-4 z-20">
-                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border backdrop-blur-md ${
-                      item.risk === 'Critical' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
-                      item.risk === 'High' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
-                      'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
-                    }`}>
-                      {item.risk} Risk
+          <AnimatePresence mode="popLayout">
+            {intel.map((item, i) => {
+              const hasExternalLink = item.url && !item.url.includes("virehire.ai/threats");
+              const safeKey = `threat-${i}-${item.title.substring(0, 5)}`;
+              
+              return (
+                <motion.article
+                  key={safeKey}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: i * 0.05 }}
+                  onClick={() => handleOpenLink(item.url)}
+                  className={`group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-white/10 bg-zinc-950/50 hover:border-indigo-500/40 transition-all hover:bg-zinc-900/40 shadow-2xl ${hasExternalLink ? 'cursor-pointer' : 'cursor-default'}`}
+                >
+                  {/* Image Header */}
+                  <div className="relative h-48 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent z-10" />
+                    <img 
+                      src={item.image || "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800"} 
+                      alt={item.title}
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 grayscale-[0.5] group-hover:grayscale-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=800";
+                      }}
+                    />
+                    <div className="absolute top-4 left-4 z-20">
+                      <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border backdrop-blur-md ${
+                        item.risk === 'Critical' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 
+                        item.risk === 'High' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' :
+                        'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+                      }`}>
+                        {item.risk} Risk
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 p-6 sm:p-8 flex flex-col justify-between">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest">{item.target} Sector</span>
-                      <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Confidence: {item.confidence}%</span>
-                    </div>
-                    <h3 className="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-2">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3">
-                      {item.summary}
-                    </p>
                   </div>
 
-                  <div className="mt-8 flex items-center justify-between pt-6 border-t border-white/5">
-                    <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 uppercase">
-                      <ExternalLink className="h-3 w-3" />
-                      View Source
+                  {/* Content */}
+                  <div className="flex-1 p-6 sm:p-8 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest">{item.target} Sector</span>
+                        <span className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">Confidence: {item.confidence}%</span>
+                      </div>
+                      <h3 className="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-2">
+                        {item.title}
+                      </h3>
+                      <p className="text-sm text-zinc-400 leading-relaxed line-clamp-3">
+                        {item.summary}
+                      </p>
                     </div>
-                    <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-indigo-500 transition-all group-hover:shadow-lg group-hover:shadow-indigo-500/20">
-                      <ArrowUpRight className="h-5 w-5 text-white" />
+
+                    <div className="mt-8 flex items-center justify-between pt-6 border-t border-white/5">
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 uppercase">
+                        {hasExternalLink ? (
+                          <>
+                            <ExternalLink className="h-3 w-3" />
+                            View Source
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="h-3 w-3" />
+                            Internal Analysis
+                          </>
+                        )}
+                      </div>
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-all ${hasExternalLink ? 'bg-white/5 group-hover:bg-indigo-500 group-hover:shadow-lg group-hover:shadow-indigo-500/20' : 'bg-white/5 text-zinc-700'}`}>
+                        <ArrowUpRight className="h-5 w-5 text-white" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.article>
-            ))}
+                </motion.article>
+              );
+            })}
           </AnimatePresence>
         )}
       </div>

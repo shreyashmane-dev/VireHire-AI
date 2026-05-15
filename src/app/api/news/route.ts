@@ -30,7 +30,7 @@ export async function GET() {
   const dailyNewsRef = adminDb?.collection("daily_intelligence").doc(today) ?? null;
 
   try {
-    // 1. Try Cache First (Cache for 6 hours to keep it fresh)
+    // 1. Try Cache First (Cache for 2 hours to ensure freshness)
     if (dailyNewsRef) {
       const cachedDoc = await dailyNewsRef.get();
       if (cachedDoc.exists) {
@@ -38,8 +38,7 @@ export async function GET() {
         const lastUpdated = new Date(data?.generatedAt || 0).getTime();
         const now = new Date().getTime();
         
-        // If less than 6 hours old, return cache
-        if (now - lastUpdated < 6 * 60 * 60 * 1000) {
+        if (now - lastUpdated < 2 * 60 * 60 * 1000) {
           return NextResponse.json({ success: true, data: data?.items, source: "cache" });
         }
       }
@@ -56,43 +55,53 @@ export async function GET() {
     const newsData = await newsResponse.json();
 
     if (!newsData.articles || newsData.articles.length === 0) {
-      throw new Error("No real-world news found today");
+      throw new Error("No news found");
     }
 
-    // 3. Use Groq to transform real news into Threat Intel format
+    // 3. Use Groq to transform real news
     const groq = new Groq({ apiKey: groqApiKey });
     
-    // Provide titles, descriptions, URLs and images to Groq
-    const newsContext = newsData.articles.map((a: any, i: number) => 
-      `ARTICLE ${i}:
-      Title: ${a.title}
-      Desc: ${a.description}
-      URL: ${a.url}
-      Image: ${a.urlToImage}`
+    // Explicitly pass data as a list of possibilities
+    const newsContext = newsData.articles.slice(0, 10).map((a: any, i: number) => 
+      `SOURCE_${i}:
+      TITLE: ${a.title}
+      DESC: ${a.description}
+      LINK: ${a.url}
+      IMG: ${a.urlToImage || 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b'}`
     ).join("\n\n");
 
     const prompt = `
-      You are an elite cybersecurity intelligence officer. Transform these real-world news articles into 6 "Threat Intel" objects.
+      You are a cybersecurity analyst. Transform these news sources into 6 structured Threat Intel objects.
       
-      For each object, you MUST include:
-      - title (concise, professional)
-      - risk (Critical, High, Medium)
-      - summary (2 sentences max)
-      - target (Sector targeted)
-      - confidence (90-99)
-      - url (MUST use the exact URL from the corresponding article)
-      - image (MUST use the exact Image URL from the corresponding article)
+      CRITICAL RULES:
+      1. You MUST use the LINK from the SOURCE for the "url" field.
+      2. You MUST use the IMG from the SOURCE for the "image" field.
+      3. Do NOT invent URLs or Images.
+      4. If a SOURCE has no IMG, use 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b'.
 
-      News Source Articles:
+      Response Format (JSON):
+      {
+        "items": [
+          {
+            "title": "...",
+            "risk": "Critical|High|Medium",
+            "summary": "...",
+            "target": "...",
+            "confidence": 95,
+            "url": "...",
+            "image": "..."
+          }
+        ]
+      }
+
+      Sources:
       ${newsContext}
-
-      Return ONLY a JSON array of objects.
     `;
 
     const completion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "llama-3.3-70b-versatile",
-      temperature: 0.3,
+      temperature: 0.1, // Low temperature for higher accuracy
       response_format: { type: "json_object" },
     });
 
@@ -101,24 +110,30 @@ export async function GET() {
 
     try {
       const content = JSON.parse(rawContent);
-      news = Array.isArray(content) ? content : (content.items || content.news || Object.values(content)[0]);
-      if (!Array.isArray(news)) news = [];
+      news = content.items || content.news || (Array.isArray(content) ? content : []);
     } catch (e) {
-      console.error("News Transformation Error:", e);
+      console.error("Parse Error:", e);
       news = fallbackNews;
     }
 
+    // Ensure all items have required fields
+    const validNews = news.map((item: any, idx: number) => ({
+      ...item,
+      url: item.url || item.link || "https://virehire.ai/threats",
+      image: item.image || item.img || fallbackNews[idx % 2].image
+    })).slice(0, 6);
+
     // 4. Cache the results
-    if (news.length > 0 && dailyNewsRef) {
+    if (validNews.length > 0 && dailyNewsRef) {
       await dailyNewsRef.set({
-        items: news.slice(0, 6),
+        items: validNews,
         generatedAt: new Date().toISOString(),
         source: "NewsAPI + Groq Real-Time",
         date: today
       });
     }
 
-    return NextResponse.json({ success: true, data: news.slice(0, 6), source: "real-time intelligence" });
+    return NextResponse.json({ success: true, data: validNews, source: "real-time intelligence" });
 
   } catch (error: any) {
     console.error("Global News API Error:", error);
